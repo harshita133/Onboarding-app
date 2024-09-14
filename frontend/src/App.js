@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import OnBoardingSteps from './OnboardingSteps';
+
 
 function App() {
   const [message, setMessage] = useState('');
@@ -12,7 +14,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>{message}</h1>
+      <OnBoardingSteps />
     </div>
   );
 }
