@@ -15,7 +15,7 @@ const steps = [
     content: <SecondOnboardingStep />,
   },
   {
-    title: 'Upload second CSV',
+    title: 'Upload CSV with different headers',
     content: <ThirdOnboardingStep />,
   },
 ];
@@ -42,6 +42,8 @@ const OnBoardingSteps = () => {
     marginTop: 16,
   };
 
+  
+
   return (
     <>
 
@@ -60,7 +62,7 @@ const OnBoardingSteps = () => {
           </Button>
         )}
         {current === steps.length - 1 && (
-          <Button type="primary" onClick={() => message.success('Processing complete!')}>
+          <Button type="primary" href='/dashboard' >
             Done
           </Button>
         )}

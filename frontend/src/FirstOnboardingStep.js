@@ -2,7 +2,23 @@ import React, { useState } from 'react';
 import { Button, Form, Input, Radio, Row, Col } from 'antd';
 
 const onFinish = (values) => {
-  console.log('Success:', values);
+  fetch('http://localhost:5000/api/insertNewUser', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      firstName: values.firstname.toLowerCase(),
+      lastName: values.lastname.toLowerCase(),
+      email: values.email.toLowerCase(),
+      phonenumber: values.phonenumber,
+    }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log('User added successfully:', data.message);
+    })
+    .catch((error) => console.error('Error adding user:', error));
 };
 
 const onFinishFailed = (errorInfo) => {
@@ -106,33 +122,7 @@ const FirstOnboardingStep = () => {
           </Form>
         </Col>
 
-        {/* Right Column: Question */}
-        <Col span={12}>
-          <div style={{ marginTop: '0px' }}>
-            <h3 style={{ marginBottom: '0px' }}>Do you already have tables stored with us?</h3>
-            <Radio.Group onChange={handleHasTablesChange} style={{ marginBottom: '0px' }}>
-              <Radio value="yes">Yes</Radio>
-              <Radio value="no">No</Radio>
-            </Radio.Group>
 
-            {/* Input field for table name, shown only if "Yes" is selected */}
-            {hasTables && (
-              <Form.Item
-                label="Table Name"
-                name="tablename"
-                style={{ marginTop: '0px' }}
-                rules={[
-                  {
-                    required: true,
-                    message: 'Please input the table name!',
-                  },
-                ]}
-              >
-                <Input placeholder="Enter your table name" />
-              </Form.Item>
-            )}
-          </div>
-        </Col>
       </Row>
     </>
   );
