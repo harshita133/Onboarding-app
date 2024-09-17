@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
-import { Flex, message, Upload, Checkbox, Select } from 'antd';
+import { Flex, message, Upload, Checkbox, Selec,Row,Col,Button,Select } from 'antd';
 import Papa from 'papaparse';
-
+import { useNavigate } from 'react-router-dom'
 const { Option } = Select;
 
 const getBase64 = (file, callback) => {
@@ -53,14 +53,21 @@ const detectColumnType = (values) => {
   }
 
   // Default to string if none of the above matched
-  return 'string';
+  return 'varchar(1000)';
 };
 
-const ThirdOnboardingStep = () => {
+
+
+const ThirdOnboardingStep = ({ firstName,previousColumns,previousRows }) => {
   const [loading, setLoading] = useState(false);
   const [fileUrl, setFileUrl] = useState();
   const [columns, setColumns] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState({});
+  const [parsedData, setParsedData] = useState([]);
+  const [isDisabled, setIsDisabled] = useState(false); // To disable/enable Done button
+  const [errorMessage, setErrorMessage] = useState(""); // Error message state
+  const navigate = useNavigate(); // React Router v6 navigate
+
 
   // Function to handle parsing the CSV and extracting column names and prefilling data types
   const handleParseCSV = (file) => {
@@ -74,19 +81,73 @@ const ThirdOnboardingStep = () => {
           firstRow.forEach((col, index) => {
             const columnValues = dataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
             detectedColumnTypes[col] = {
-              addToDatabase: true, // Automatically select to add to DB
-              dbType: detectColumnType(columnValues), // Detect column type
+              addToDatabase: true,
+              dbType: detectColumnType(columnValues),
             };
           });
 
           setColumns(firstRow);
           setSelectedColumns(detectedColumnTypes);
+          setParsedData(dataRows); // Store the parsed data
           setLoading(false); // Stop loading after parsing is complete
+          validate(firstRow,dataRows)
         }
       },
-      header: false, // We assume the first row is the header (column names)
+      header: false,
     });
   };
+  const validate = (selectedColumns,selectedParseData) => {
+    const isSameHeaders = JSON.stringify(selectedColumns) === JSON.stringify(previousColumns);
+    const isSameData = JSON.stringify(selectedParseData) === JSON.stringify(previousRows);
+    if (isSameHeaders || isSameData) {
+      setErrorMessage('The uploaded file has the same headers and data as the previous file.');
+      setIsDisabled(true); // Disable Done button
+      return false;
+    }
+    setErrorMessage(''); // Clear error message
+    setIsDisabled(false); // Enable Done button
+    return true;
+  };
+
+    // Handle the 'Next' button click to send data to parent
+    const handleNext = () => {
+      if (!fileUrl) {
+        // If no file is uploaded, just proceed to the next step without data
+        navigate(`/dashboard/${firstName}`);
+        return;
+      }
+      const columnsToAdd = Object.keys(selectedColumns)
+        .filter((col) => selectedColumns[col].addToDatabase)
+        .map((col) => ({
+          name: col,
+          dbType: selectedColumns[col].dbType,
+        }));
+  
+      parsedData.pop();
+  
+      const payload = {
+        tableName: firstName + "_" + fileUrl.name.split('.').slice(0, -1).join('.') +"_2", // Use the file name as the table name
+        columns: columnsToAdd,
+        data: parsedData,
+      };
+  
+      // Send POST request with the CSV data to the server
+      fetch('/api/createTableFromCSV', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          message.success('Table created successfully');
+          navigate(`/dashboard/${firstName}`);
+        })
+        .catch((error) => {
+          message.error('Error creating table');
+        });
+    };
 
   const handleChange = (info) => {
     const file = info.file.originFileObj;
@@ -144,10 +205,12 @@ const ThirdOnboardingStep = () => {
   );
 
   // Common data types for the select dropdown
-  const dataTypes = ['string', 'int', 'float', 'boolean', 'date', 'time'];
+  const dataTypes = ['varchar(1000)', 'char[]', 'numeric', 'numeric[]', 'float', 'boolean', 'date', 'time'];
+
 
   return (
-    <Flex gap="middle" wrap>
+      <Row gutter={[16, 16]} justify="center" align="middle">
+      <Col xs={24} style={{ textAlign: 'center', marginBottom: '20px' }}>
       <Upload
         name="file"
         className="file-uploader"
@@ -165,11 +228,16 @@ const ThirdOnboardingStep = () => {
       >
         {uploadButton}
       </Upload>
+      </Col>
 
+      <Col xs={24} md={12} lg={8} style={{ textAlign: 'center' }}>
       {/* Display CSV or Excel column names with checkboxes and select list for DB types */}
       {columns.length > 0 && (
         <div style={{ marginTop: '20px' }}>
           <h3>Select Columns to Add to Database and Specify Type:</h3>
+          {errorMessage && (
+              <p style={{ color: 'red', marginBottom: '20px' }}>{errorMessage}</p>
+            )}
           <ul style={{ paddingLeft: '20px', margin: '10px 0', lineHeight: '1.5' }}>
             {columns.map((col, index) => (
               <li key={index} style={{ listStyle: 'none', paddingBottom: '5px', display: 'flex', alignItems: 'center' }}>
@@ -198,7 +266,14 @@ const ThirdOnboardingStep = () => {
           </ul>
         </div>
       )}
-    </Flex>
+      </Col>
+
+<Col xs={24} style={{ textAlign: 'center', marginTop: '20px' }}>
+  <Button type="primary" onClick={handleNext} disabled={isDisabled}>
+    Done
+  </Button>
+</Col>
+</Row>
   );
 };
 

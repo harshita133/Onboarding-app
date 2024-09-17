@@ -24,20 +24,21 @@ const Home = () => {
   };
 
   const handleDashboardSubmit = (values) => {
-    fetch('http://localhost:5000/api/findUser', {
+    var firstN=values.firstname.toLowerCase()
+    fetch('/api/findUser', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        firstName: values.firstname,
+        firstName: firstN,
       }),
     })
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
           message.success('User found, redirecting to dashboard...');
-          navigate('/dashboard'); // Redirect to the /dashboard page if the user is found
+          navigate(`/dashboard/${firstN}`);
         } else {
           message.error('Incorrect Username or You are not a member with us');
         }

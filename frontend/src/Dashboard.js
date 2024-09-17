@@ -1,13 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Modal, Button } from 'antd'; // Import Modal and Button from Ant Design
+import TableView from './TableView'; // Import TableView component
+import MultiUpload from './MultiUpload'; // Import the new MultiUpload component
 
 const Dashboard = () => {
-  // Sample user data
-  const user = {
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+123456789',
-    uploadedTables: ['Table1.csv', 'Table2.csv', 'Table3.csv'],
+  const { firstName } = useParams(); // Get firstName from the route parameters
+  const [user, setUser] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    uploadedTables: [],
+  });
+
+  const [selectedTable, setSelectedTable] = useState(''); // State for selected table
+  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal visibility (TableView)
+  const [isMultiUploadOpen, setIsMultiUploadOpen] = useState(false); // State for modal visibility (MultiUpload)
+
+  useEffect(() => {
+    // Fetch user details from the server using the firstName
+    fetch(`/api/getDetails?firstName=${firstName}`)
+      .then((response) => response.json())
+      .then((data) => {
+        setUser({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          uploadedTables: data.uploadedTables || [],
+        });
+      })
+      .catch((error) => console.error('Error fetching user details:', error));
+  }, [firstName]);
+
+  // Function to open the modal for TableView
+  const openModal = (table) => {
+    setSelectedTable(table);
+    setIsModalOpen(true);
+  };
+
+  // Function to close the TableView modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedTable(''); // Clear the selected table when modal is closed
+  };
+
+  // Function to handle opening MultiUpload modal
+  const openMultiUploadModal = () => {
+    setIsMultiUploadOpen(true);
+  };
+
+  // Function to close the MultiUpload modal
+  const closeMultiUploadModal = () => {
+    setIsMultiUploadOpen(false);
   };
 
   // Inline styles
@@ -50,7 +96,6 @@ const Dashboard = () => {
       padding: '20px',
       maxWidth: '1200px',
       margin: '0 auto',
-      fontFamily: '"Roboto", sans-serif',
     },
     sidebar: {
       flex: '0.3',
@@ -92,6 +137,9 @@ const Dashboard = () => {
       marginBottom: '20px',
       borderBottom: '2px solid #f0f0f0',
       paddingBottom: '10px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     },
     statsContainer: {
       display: 'flex',
@@ -130,6 +178,7 @@ const Dashboard = () => {
       borderRadius: '8px',
       boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
       transition: 'background-color 0.2s',
+      cursor: 'pointer',
     },
   };
 
@@ -212,7 +261,6 @@ const Dashboard = () => {
               <div style={styles.userInfoValue}>{user.phone}</div>
             </div>
           </div>
-          <button style={styles.button}>View All Fields</button>
         </div>
 
         {/* Main Content */}
@@ -220,20 +268,29 @@ const Dashboard = () => {
           <h1 style={styles.sectionTitle}>Overview</h1>
           <div style={styles.statsContainer}>
             <div style={styles.statBox}>
-              <div style={styles.statValue}>12%</div>
-              <p>Profile Completed</p>
+              <div style={styles.statValue}>{user.uploadedTables.length}</div>
+              <p>Count of tables</p>
             </div>
             <div style={styles.statBox}>
               <div style={styles.statValue}>0h</div>
-              <p>Time Reported This Month</p>
+              <p>Total number of columns</p>
             </div>
           </div>
 
           <div style={styles.uploadedTablesSection}>
-            <h2 style={styles.sectionTitle}>Uploaded Tables</h2>
+            <div style={styles.sectionTitle}>
+              <h2>Uploaded Tables</h2>
+              <Button type="primary" onClick={openMultiUploadModal}>
+                MultiUpload
+              </Button>
+            </div>
             <ul style={styles.tableList}>
               {user.uploadedTables.map((table, index) => (
-                <li key={index} style={styles.tableItem}>
+                <li
+                  key={index}
+                  style={styles.tableItem}
+                  onClick={() => openModal(table)} // Set selected table and open modal on click
+                >
                   {table}
                 </li>
               ))}
@@ -241,6 +298,30 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal for TableView */}
+      <Modal
+        title={`Table Data: ${selectedTable}`}
+        visible={isModalOpen}  // Controls modal visibility
+        onOk={closeModal}  // Close modal on OK button
+        onCancel={closeModal}  // Close modal on Cancel button
+        centered  // Centers the modal vertically
+        width={800}  // Set modal width
+      >
+        <TableView tableName={selectedTable} /> {/* Pass the selected table to TableView */}
+      </Modal>
+
+      {/* Modal for MultiUpload */}
+      <Modal
+        title="MultiUpload Files"
+        visible={isMultiUploadOpen}  // Controls modal visibility for MultiUpload
+        onOk={closeMultiUploadModal}  // Close modal on OK button
+        onCancel={closeMultiUploadModal}  // Close modal on Cancel button
+        centered  // Centers the modal vertically
+        width={600}  // Set modal width for MultiUpload
+      >
+        <MultiUpload tableNames={user.uploadedTables}/> {/* Render the MultiUpload component inside the modal */}
+      </Modal>
     </>
   );
 };

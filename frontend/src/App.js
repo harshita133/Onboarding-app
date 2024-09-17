@@ -5,26 +5,18 @@ import Dashboard from './Dashboard'; // Create a Dashboard component
 import Home from './Home';
 
 function App() {
-  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetch('http://localhost:5000/api/hello')
-      .then((response) => response.json())
-      .then((data) => setMessage(data.message))
-      .catch((error) => console.error('Error fetching data:', error));
-  }, []);
 
   return (
     <Router>
       <div className="App">
-
         {/* Define your routes */}
         <Routes>
-          {/* Onboarding Steps route (default route) */}
+          {/* Home route (default route) */}
           <Route path="/" element={<Home />} />
 
-          {/* Dashboard route */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Dashboard route with dynamic firstName */}
+          <Route path="/dashboard/:firstName" element={<Dashboard />} />
         </Routes>
       </div>
     </Router>
