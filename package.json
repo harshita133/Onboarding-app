@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "papaparse": "^5.4.1",
-    "react-router-dom": "^6.26.2"
-  }
-}
