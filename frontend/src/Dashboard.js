@@ -20,7 +20,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Fetch user details from the server using the firstName
-    fetch(`/api/getDetails?firstName=${firstName}`)
+    fetch(`http://localhost:5000/api/getDetails?firstName=${firstName}`)
       .then((response) => response.json())
       .then((data) => {
         setUser({

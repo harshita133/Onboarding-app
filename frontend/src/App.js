@@ -6,6 +6,24 @@ import Home from './Home';
 
 function App() {
 
+  // useEffect(() => {
+  //   // Fetch data from your API on port 5000
+  //   fetch(`http://localhost:5000/api/hello`)
+  //     .then((response) => {
+  //       if (!response.ok) {
+  //         throw new Error('Network response was not ok');
+  //       }
+  //       return response.json();
+  //     })
+  //     .then((data) => {
+  //         console.log("first Time table created")
+  //     })
+  //     .catch((error) => {
+  //         console.log("error")
+  //     });
+  // }, []); 
+
+
 
   return (
     <Router>

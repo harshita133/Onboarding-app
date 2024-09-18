@@ -18,7 +18,7 @@ const MultiUpload = ({tableNames}) => {
   useEffect(() => {
     const fetchTableData = async () => {
       try {
-        const response = await fetch(`/api/getAllTableData?tableNames=${JSON.stringify(tableNames)}`);
+        const response = await fetch(`http://localhost:5000/api/getAllTableData?tableNames=${JSON.stringify(tableNames)}`);
         const data = await response.json();
 
         if (response.ok) {
@@ -180,7 +180,7 @@ const MultiUpload = ({tableNames}) => {
     };
 
     // Post the payload to your server (implement the logic accordingly)
-    fetch('/api/createTableFromCSV', {
+    fetch('http://localhost:5000/api/createTableFromCSV', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

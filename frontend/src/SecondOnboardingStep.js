@@ -132,7 +132,7 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
     };
 
     // Send POST request with the CSV data to the server
-    fetch('/api/createTableFromCSV', {
+    fetch('http://localhost:5000/api/createTableFromCSV', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

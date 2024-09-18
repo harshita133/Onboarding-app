@@ -19,7 +19,7 @@ const OnBoardingSteps = () => {
         .then((values) => {
           setFirstName(values.firstname.toLowerCase())
           // Call your API to submit the form
-          fetch('/api/insertNewUser', {
+          fetch('http://localhost:5000/api/insertNewUser', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

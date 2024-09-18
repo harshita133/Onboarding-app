@@ -9,7 +9,7 @@ const TableView = ({ tableName }) => {
   useEffect(() => {
     const fetchTableData = async () => {
       try {
-        const response = await fetch(`/api/getTableData?tableName=${tableName}`);
+        const response = await fetch(`http://localhost:5000/api/getTableData?tableName=${tableName}`);
         const data = await response.json();
 
         if (response.ok) {
