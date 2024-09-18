@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import { message, Upload, Checkbox, Select, Button, Row, Col } from 'antd';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx'; // Import SheetJS for handling Excel files
 
 const { Option } = Select;
 
@@ -18,8 +19,21 @@ const beforeUpload = (file) => {
   return isSpreadsheet;
 };
 
+// Function to handle XLSX or XLS file parsing
+const handleParseXLSX = (file, callback) => {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    callback(worksheet);
+  };
+  reader.readAsArrayBuffer(file);
+};
+
 const detectColumnType = (values) => {
-  if (values.every((val) => ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
+  if (values.every((val) => typeof val === 'string' && ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
     return 'BOOLEAN';
   }
   // Check for integer columns
@@ -30,15 +44,16 @@ const detectColumnType = (values) => {
   if (values.every((val) => !isNaN(val))) {
     return 'REAL';
   }
-  if (values.every((val) => !isNaN(Date.parse(val)))) {
+  if (values.every((val) => typeof val === 'string' && !isNaN(Date.parse(val)))) {
     return 'DATE';
   }
   const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
-  if (values.every((val) => timePattern.test(val))) {
+  if (values.every((val) => typeof val === 'string' && timePattern.test(val))) {
     return 'TIMESTAMP';
   }
   return 'VARCHAR(1000)';
 };
+
 
 const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
   const [loading, setLoading] = useState(false);
@@ -47,35 +62,51 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
   const [selectedColumns, setSelectedColumns] = useState({});
   const [parsedData, setParsedData] = useState([]);
 
-  // Function to handle parsing the CSV and extracting column names and prefilling data types
-  const handleParseCSV = (file) => {
-    Papa.parse(file, {
-      complete: (result) => {
-        if (result.data && result.data.length > 1) {
-          const firstRow = result.data[0]; // First row is the header
-          const dataRows = result.data.slice(1); // Remaining rows are data
+  // Function to handle parsing the CSV, XLS, or XLSX files
+  const handleParseFile = (file) => {
+    if (file.type === 'text/csv') {
+      // Handle CSV file using PapaParse
+      Papa.parse(file, {
+        complete: (result) => {
+          processParsedData(result.data);
+        },
+        header: false,
+      });
+    } else if (
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel'
+    ) {
+      // Handle XLSX or XLS file using SheetJS (xlsx)
+      handleParseXLSX(file, processParsedData);
+    } else {
+      message.error('Unsupported file format');
+    }
+  };
 
-          // Filter out empty rows
-          const filteredDataRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+  // Function to process parsed data from either CSV or XLSX
+  const processParsedData = (data) => {
+    if (data && data.length > 1) {
+      const firstRow = data[0]; // First row is the header
+      const dataRows = data.slice(1); // Remaining rows are data
 
-          const detectedColumnTypes = {};
+      // Filter out empty rows
+      const filteredDataRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
 
-          firstRow.forEach((col, index) => {
-            const columnValues = filteredDataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
-            detectedColumnTypes[col] = {
-              addToDatabase: true,
-              dbType: detectColumnType(columnValues),
-            };
-          });
+      const detectedColumnTypes = {};
 
-          setColumns(firstRow);
-          setSelectedColumns(detectedColumnTypes);
-          setParsedData(filteredDataRows); // Store the filtered parsed data
-          setLoading(false); // Stop loading after parsing is complete
-        }
-      },
-      header: false,
-    });
+      firstRow.forEach((col, index) => {
+        const columnValues = filteredDataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
+        detectedColumnTypes[col] = {
+          addToDatabase: true,
+          dbType: detectColumnType(columnValues),
+        };
+      });
+
+      setColumns(firstRow);
+      setSelectedColumns(detectedColumnTypes);
+      setParsedData(filteredDataRows); // Store the filtered parsed data
+      setLoading(false); // Stop loading after parsing is complete
+    }
   };
 
   const handleChange = (info) => {
@@ -85,7 +116,7 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       return;
     }
     setFileUrl(file);
-    handleParseCSV(file);
+    handleParseFile(file);
   };
 
   const handleCheckboxChange = (columnName, checked) => {
@@ -108,10 +139,8 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
     });
   };
 
-  // Handle the 'Next' button click to send data to parent
   const handleNext = () => {
     if (!fileUrl) {
-      // If no file is uploaded, just proceed to the next step without data
       onNext();
       return;
     }
@@ -143,7 +172,7 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       data: parsedNumericData, // Use the modified numeric data
     };
 
-    // Send POST request with the CSV data to the server
+    // Send POST request with the CSV/XLS/XLSX data to the server
     fetch('http://localhost:5000/api/createTableFromCSV', {
       method: 'POST',
       headers: {
@@ -186,7 +215,8 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
               onSuccess("ok");
             }, 0);
           }}
-        >
+       
+          >
           {uploadButton}
         </Upload>
       </Col>
