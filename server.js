@@ -46,32 +46,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 //     });
 // });
 
-app.get('/api/getDetails', (req, res) => {
-  console.log("Dropping and recreating the table");
 
-  // SQL query to drop the table and recreate it
-  const recreateTableQuery = `
-    DROP TABLE IF EXISTS "UserDetails";
-    
-    CREATE TABLE "UserDetails" (
-      "firstName" TEXT, 
-      "lastName" TEXT, 
-      "phone" NUMERIC, 
-      "email" TEXT
-    );
-  `;
-
-  // Execute the query using the PostgreSQL pool
-  pool.query(recreateTableQuery)
-    .then((response) => {
-      console.log("Table dropped and recreated successfully");
-      res.json({ message: 'Table dropped and recreated successfully!' });
-    })
-    .catch((err) => {
-      console.error("Error dropping and recreating the table:", err);
-      res.status(500).json({ error: 'Error dropping and recreating the table' });
-    });
-});
 
 
 
@@ -159,48 +134,48 @@ app.post('/api/createTableFromCSV', (req, res) => {
 
 
 // Define the /api/getDetails route to fetch user details and tables
-// app.get('/api/getDetails', async (req, res) => {
-//   const { firstName } = req.query; // Extract firstName from query params
+app.get('/api/getDetails', async (req, res) => {
+  const { firstName } = req.query; // Extract firstName from query params
 
-//   if (!firstName) {
-//     return res.status(400).json({ error: 'Missing firstName parameter' });
-//   }
+  if (!firstName) {
+    return res.status(400).json({ error: 'Missing firstName parameter' });
+  }
 
-//   try {
-//     // Query to fetch user details based on firstName
-//     const userDetailsQuery = `
-//       SELECT "firstName", "lastName", email, phone 
-//       FROM public."UserDetails" 
-//       WHERE "firstName" = $1
-//     `;
-//     const userDetailsResult = await pool.query(userDetailsQuery, [firstName]);
+  try {
+    // Query to fetch user details based on firstName
+    const userDetailsQuery = `
+      SELECT "firstName", "lastName", email, phone 
+      FROM public."UserDetails" 
+      WHERE "firstName" = $1
+    `;
+    const userDetailsResult = await pool.query(userDetailsQuery, [firstName]);
 
-//     // Check if the user was found
-//     if (userDetailsResult.rows.length === 0) {
-//       return res.status(404).json({ error: 'User not found' });
-//     }
+    // Check if the user was found
+    if (userDetailsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-//     // Query to fetch tables matching the pattern firstName_<table_name>
-//     const tablesQuery = `
-//       SELECT table_name 
-//       FROM information_schema.tables 
-//       WHERE table_schema = 'public' AND table_name LIKE $1
-//     `;
-//     const tablesResult = await pool.query(tablesQuery, [`${firstName}_%`]);
+    // Query to fetch tables matching the pattern firstName_<table_name>
+    const tablesQuery = `
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name LIKE $1
+    `;
+    const tablesResult = await pool.query(tablesQuery, [`${firstName}_%`]);
 
-//     const userDetails = userDetailsResult.rows[0];
-//     const uploadedTables = tablesResult.rows.map(row => row.table_name); // Extract table names
+    const userDetails = userDetailsResult.rows[0];
+    const uploadedTables = tablesResult.rows.map(row => row.table_name); // Extract table names
 
-//     // Send the user details and table names as a response
-//     res.json({
-//       ...userDetails,
-//       uploadedTables, // Add the list of tables
-//     });
-//   } catch (err) {
-//     console.error('Error querying the database:', err);
-//     res.status(500).json({ error: 'Database error' });
-//   }
-// });
+    // Send the user details and table names as a response
+    res.json({
+      ...userDetails,
+      uploadedTables, // Add the list of tables
+    });
+  } catch (err) {
+    console.error('Error querying the database:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
 
 
 app.get('/api/getTableData', async (req, res) => {
