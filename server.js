@@ -12,6 +12,39 @@ app.use(express.json());
 console.log(__dirname)
 app.use(express.static(path.join(__dirname, 'public')));
 // API route
+
+app.get('/api/hello', (req, res) => {
+  // Define the column structure
+  const columnDefinitions = `
+    firstName TEXT, 
+    lastName TEXT, 
+    phone NUMERIC, 
+    email TEXT
+  `;
+
+  // Create the SQL query to create the UserDetails table
+  const createTableQuery = `CREATE TABLE IF NOT EXISTS UserDetails (${columnDefinitions})`;
+
+  // Execute the query using the PostgreSQL pool
+  pool.query(createTableQuery)
+    .then((response) => {
+      console.log("Table created or already exists");
+
+      // Optionally fetch data to verify table creation
+      const selectTableQuery = `SELECT * FROM UserDetails`;
+      return pool.query(selectTableQuery); // Fetch data from the table
+    })
+    .then((response) => {
+      console.log("Fetching Data");
+      console.log(response.rows); // Log the data in the table
+      res.json({ message: 'Table created and data fetched successfully!', data: response.rows });
+    })
+    .catch((err) => {
+      console.error("Error creating table or fetching data:", err);
+      res.status(500).json({ error: 'Error creating table or fetching data' });
+    });
+});
+
 app.get('/api/check', (req, res) => {
 
   const selectTableQuery=`SELECT "firstName", "lastName", phone, email FROM "UserDetails";`
