@@ -23,7 +23,7 @@ app.get('/api/check', (req, res) => {
   `;
 
   // Create the SQL query to create the UserDetails table
-  const createTableQuery = `CREATE TABLE IF NOT EXISTS UserDetails (${columnDefinitions})`;
+  const createTableQuery = `CREATE TABLE IF NOT EXISTS "UserDetails" (${columnDefinitions})`;
 
   // Execute the query using the PostgreSQL pool
   pool.query(createTableQuery)
