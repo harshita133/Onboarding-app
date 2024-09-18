@@ -13,7 +13,7 @@ console.log(__dirname)
 app.use(express.static(path.join(__dirname, 'public')));
 // API route
 
-app.get('/api/hello', (req, res) => {
+app.get('/api/check', (req, res) => {
   // Define the column structure
   const columnDefinitions = `
     firstName TEXT, 
@@ -45,18 +45,18 @@ app.get('/api/hello', (req, res) => {
     });
 });
 
-app.get('/api/check', (req, res) => {
+// app.get('/api/check', (req, res) => {
 
-  const selectTableQuery=`SELECT "firstName", "lastName", phone, email FROM "UserDetails";`
-  pool.query(selectTableQuery).then((response)=>{
-    console.log("Fetching Data")
-    console.log(response.rows)
-  })
-  .catch((err)=>{
-    console.log(err)
-  })
-  res.json({ message: 'Hello World from the backend!' });
-});
+//   const selectTableQuery=`SELECT "firstName", "lastName", phone, email FROM "UserDetails";`
+//   pool.query(selectTableQuery).then((response)=>{
+//     console.log("Fetching Data")
+//     console.log(response.rows)
+//   })
+//   .catch((err)=>{
+//     console.log(err)
+//   })
+//   res.json({ message: 'Hello World from the backend!' });
+// });
 
 app.post('/api/insertNewUser', (req, res) => {
   
