@@ -26,22 +26,22 @@ const beforeUpload = (file) => {
 
 const detectColumnType = (values) => {
   if (values.every((val) => ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
-    return 'boolean';
+    return 'BOOLEAN';
   }
   if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
-    return 'numeric[]';
+    return 'NUMERIC[]';
   }
   if (values.every((val) => !isNaN(val))) {
-    return 'float';
+    return 'REAL';
   }
   if (values.every((val) => !isNaN(Date.parse(val)))) {
-    return 'date';
+    return 'DATE';
   }
   const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
   if (values.every((val) => timePattern.test(val))) {
-    return 'time';
+    return 'TIMESTAMP';
   }
-  return 'varchar(1000)';
+  return 'VARCHAR(1000)';
 };
 
 const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
@@ -156,7 +156,7 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
     </div>
   );
 
-  const dataTypes = ['varchar(1000)', 'char[]', 'numeric', 'numeric[]', 'float', 'boolean', 'date', 'time'];
+  const dataTypes = ['VARCHAR(1000)', 'CHAR[]', 'NUMERIC', 'NUMERIC[]', 'REAL', 'BOOLEAN', 'DATE', 'TIMESTAMP'];
 
   return (
     <Row gutter={[16, 16]} justify="center" align="middle">
