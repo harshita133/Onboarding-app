@@ -14,6 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API route
 
 app.get('/api/check', (req, res) => {
+  console.log("check check check")
   // Define the column structure
   const columnDefinitions = `
     firstName TEXT, 
