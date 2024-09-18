@@ -47,26 +47,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 // });
 
 app.get('/api/getDetails', (req, res) => {
-  console.log("Updating column names");
+  console.log("Dropping and recreating the table");
 
-  // SQL query to rename columns
-  const renameColumnsQuery = `
-    ALTER TABLE "UserDetails"
-    RENAME COLUMN firstname TO "firstName",
-    RENAME COLUMN lastname TO "lastName";
+  // SQL query to drop the table and recreate it
+  const recreateTableQuery = `
+    DROP TABLE IF EXISTS "UserDetails";
+    
+    CREATE TABLE "UserDetails" (
+      "firstName" TEXT, 
+      "lastName" TEXT, 
+      "phone" NUMERIC, 
+      "email" TEXT
+    );
   `;
 
   // Execute the query using the PostgreSQL pool
-  pool.query(renameColumnsQuery)
+  pool.query(recreateTableQuery)
     .then((response) => {
-      console.log("Columns renamed successfully");
-      res.json({ message: 'Columns renamed successfully!' });
+      console.log("Table dropped and recreated successfully");
+      res.json({ message: 'Table dropped and recreated successfully!' });
     })
     .catch((err) => {
-      console.error("Error renaming columns:", err);
-      res.status(500).json({ error: 'Error renaming columns' });
+      console.error("Error dropping and recreating the table:", err);
+      res.status(500).json({ error: 'Error dropping and recreating the table' });
     });
 });
+
 
 
 app.get('/api/check', (req, res) => {
