@@ -205,6 +205,7 @@ app.get('/api/getTableData', async (req, res) => {
 
 app.get('/api/getAllTableData', async (req, res) => {
   const { tableNames } = req.query; // Extract tableNames from query params (array expected)
+  
   console.log(tableNames.length )
   if (!tableNames || !Array.isArray(tableNames) || tableNames.length === 0) {
     console.log("failure")

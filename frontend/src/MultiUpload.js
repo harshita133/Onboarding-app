@@ -1,11 +1,12 @@
-import React, { useState,useEffect } from 'react';
-import { Upload, Button, message, Checkbox, Select, Row, Col,Alert } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Upload, Button, message, Checkbox, Select, Row, Col, Alert } from 'antd';
 import { LoadingOutlined, UploadOutlined } from '@ant-design/icons';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx'; // Import XLSX for handling Excel files
 
 const { Option } = Select;
 
-const MultiUpload = ({tableNames}) => {
+const MultiUpload = ({ tableNames }) => {
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -17,16 +18,19 @@ const MultiUpload = ({tableNames}) => {
 
   useEffect(() => {
     const fetchTableData = async () => {
+      if (!tableNames || tableNames.length === 0) {
+        setError('Missing or invalid tableNames parameter');
+        return;
+      }
+
       try {
+        console.log(JSON.stringify(tableNames))
         const response = await fetch(`http://localhost:5000/api/getAllTableData?tableNames=${JSON.stringify(tableNames)}`);
         const data = await response.json();
 
         if (response.ok) {
           setTableColumns(data.columns); // Set the 2D array of columns
           setTableData(data.data); // Set the 2D array of table data
-          console.log(data.columns)
-          console.log(data.data)
-
         } else {
           setError(data.error || 'Error fetching table data');
         }
@@ -39,6 +43,8 @@ const MultiUpload = ({tableNames}) => {
 
     if (tableNames && tableNames.length > 0) {
       fetchTableData();
+    } else {
+      setError('Missing or invalid tableNames parameter'); // Handle missing or empty tableNames
     }
   }, [tableNames]);
 
@@ -56,23 +62,54 @@ const MultiUpload = ({tableNames}) => {
 
   // Function to detect the column data types
   const detectColumnType = (values) => {
-    if (values.every((val) => ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
-      return 'boolean';
+    if (values.every((val) => typeof val === 'string' && ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
+      return 'BOOLEAN';
     }
     if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
-      return 'numeric[]';
+      return 'NUMERIC[]';
     }
     if (values.every((val) => !isNaN(val))) {
-      return 'float';
+      return 'REAL';
     }
-    if (values.every((val) => !isNaN(Date.parse(val)))) {
-      return 'date';
+    if (values.every((val) => typeof val === 'string' && !isNaN(Date.parse(val)))) {
+      return 'DATE';
     }
     const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
-    if (values.every((val) => timePattern.test(val))) {
-      return 'time';
+    if (values.every((val) => typeof val === 'string' && timePattern.test(val))) {
+      return 'TIMESTAMP';
     }
-    return 'varchar(1000)';
+    return 'VARCHAR(1000)';
+  };
+
+  // Function to parse XLSX or XLS files using XLSX
+  const handleParseXLSX = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+      if (worksheet.length > 1) {
+        const firstRow = worksheet[0]; // First row is the header
+        const dataRows = worksheet.slice(1); // Remaining rows are data
+        const detectedColumnTypes = {};
+
+        firstRow.forEach((col, index) => {
+          const columnValues = dataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
+          detectedColumnTypes[col] = {
+            addToDatabase: true,
+            dbType: detectColumnType(columnValues),
+          };
+        });
+
+        setColumns(firstRow);
+        setSelectedColumns(detectedColumnTypes);
+        setParsedData(dataRows); // Store the parsed data
+        setLoading(false); // Stop loading after parsing is complete
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   // Function to parse CSV files using PapaParse
@@ -115,7 +152,11 @@ const MultiUpload = ({tableNames}) => {
       setSelectedColumns({});
       setParsedData([]);
     } else {
-      handleParseCSV(file.originFileObj);
+      if (file.type === 'text/csv') {
+        handleParseCSV(file.originFileObj);
+      } else {
+        handleParseXLSX(file.originFileObj);
+      }
     }
   };
 
@@ -217,10 +258,8 @@ const MultiUpload = ({tableNames}) => {
   );
 
   // Data types for columns
-  const dataTypes = ['varchar(1000)', 'char[]', 'numeric', 'numeric[]', 'float', 'boolean', 'date', 'time'];
+  const dataTypes = ['VARCHAR(1000)', 'CHAR[]', 'NUMERIC', 'NUMERIC[]', 'REAL', 'BOOLEAN', 'DATE', 'TIMESTAMP'];
 
-
-  
   return (
     <div style={{ padding: '20px', textAlign: 'center' }}>
       <Upload
@@ -235,7 +274,7 @@ const MultiUpload = ({tableNames}) => {
         customRequest={({ onSuccess }) => {
           setTimeout(() => {
             setLoading(false);
-            onSuccess("ok");
+            onSuccess('ok');
           }, 1000);
         }}
       >
