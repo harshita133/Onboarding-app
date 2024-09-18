@@ -5,12 +5,6 @@ import Papa from 'papaparse';
 
 const { Option } = Select;
 
-const getBase64 = (file, callback) => {
-  const reader = new FileReader();
-  reader.addEventListener('load', () => callback(reader.result));
-  reader.readAsDataURL(file);
-};
-
 // Restrict upload to CSV or spreadsheet file types
 const beforeUpload = (file) => {
   const isSpreadsheet =
@@ -28,9 +22,11 @@ const detectColumnType = (values) => {
   if (values.every((val) => ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
     return 'BOOLEAN';
   }
+  // Check for integer columns
   if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
-    return 'NUMERIC[]';
+    return 'NUMERIC'; // Use NUMERIC for integer columns
   }
+  // Check for floating point numbers (real numbers)
   if (values.every((val) => !isNaN(val))) {
     return 'REAL';
   }
@@ -44,7 +40,7 @@ const detectColumnType = (values) => {
   return 'VARCHAR(1000)';
 };
 
-const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
+const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
   const [loading, setLoading] = useState(false);
   const [fileUrl, setFileUrl] = useState();
   const [columns, setColumns] = useState([]);
@@ -58,10 +54,14 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
         if (result.data && result.data.length > 1) {
           const firstRow = result.data[0]; // First row is the header
           const dataRows = result.data.slice(1); // Remaining rows are data
+
+          // Filter out empty rows
+          const filteredDataRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+
           const detectedColumnTypes = {};
 
           firstRow.forEach((col, index) => {
-            const columnValues = dataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
+            const columnValues = filteredDataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
             detectedColumnTypes[col] = {
               addToDatabase: true,
               dbType: detectColumnType(columnValues),
@@ -70,9 +70,8 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
 
           setColumns(firstRow);
           setSelectedColumns(detectedColumnTypes);
-          setParsedData(dataRows); // Store the parsed data
+          setParsedData(filteredDataRows); // Store the filtered parsed data
           setLoading(false); // Stop loading after parsing is complete
-          
         }
       },
       header: false,
@@ -116,6 +115,21 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
       onNext();
       return;
     }
+
+    // Convert data to the appropriate types before sending
+    const parsedNumericData = parsedData.map((row) =>
+      row.map((value, index) => {
+        const column = columns[index];
+        const dbType = selectedColumns[column]?.dbType;
+
+        // Cast to number if the type is NUMERIC or REAL, else return value as is
+        if (dbType === 'NUMERIC' || dbType === 'REAL') {
+          return isNaN(value) || value === '' ? null : parseFloat(value);
+        }
+        return value;
+      })
+    );
+
     const columnsToAdd = Object.keys(selectedColumns)
       .filter((col) => selectedColumns[col].addToDatabase)
       .map((col) => ({
@@ -123,12 +137,10 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
         dbType: selectedColumns[col].dbType,
       }));
 
-    parsedData.pop();
-
     const payload = {
       tableName: firstName + "_" + fileUrl.name.split('.').slice(0, -1).join('.'), // Use the file name as the table name
       columns: columnsToAdd,
-      data: parsedData,
+      data: parsedNumericData, // Use the modified numeric data
     };
 
     // Send POST request with the CSV data to the server
@@ -142,7 +154,7 @@ const SecondOnboardingStep = ({ onNext,saveFile, firstName }) => {
       .then((response) => response.json())
       .then((data) => {
         message.success('Table created successfully');
-        saveFile(columns,parsedData); // Go to the next step
+        saveFile(columns, parsedNumericData); // Go to the next step
       })
       .catch((error) => {
         message.error('Error creating table');

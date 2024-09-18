@@ -28,32 +28,32 @@ const beforeUpload = (file) => {
 const detectColumnType = (values) => {
   // Check if all values are boolean
   if (values.every((val) => ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
-    return 'boolean';
+    return 'BOOLEAN';
   }
 
   // Check if all values are integers
   if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
-    return 'int';
+    return 'NUMERIC';
   }
 
   // Check if all values are numbers (floats included)
   if (values.every((val) => !isNaN(val))) {
-    return 'float';
+    return 'REAL';
   }
 
   // Check if all values are dates (basic date format check)
   if (values.every((val) => !isNaN(Date.parse(val)))) {
-    return 'date';
+    return 'DATE';
   }
 
   // Check if values could be time (basic check for HH:MM:SS format)
   const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
   if (values.every((val) => timePattern.test(val))) {
-    return 'time';
+    return 'TIMESTAMP';
   }
 
   // Default to string if none of the above matched
-  return 'varchar(1000)';
+  return 'VARCHAR(1000)';
 };
 
 
@@ -205,7 +205,7 @@ const ThirdOnboardingStep = ({ firstName,previousColumns,previousRows }) => {
   );
 
   // Common data types for the select dropdown
-  const dataTypes = ['varchar(1000)', 'char[]', 'numeric', 'numeric[]', 'float', 'boolean', 'date', 'time'];
+  const dataTypes = ['VARCHAR(1000)', 'CHAR[]', 'NUMERIC', 'NUMERIC[]', 'REAL', 'BOOLEAN', 'DATE', 'TIMESTAMP'];
 
 
   return (
