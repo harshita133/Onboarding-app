@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Modal, Button } from 'antd'; // Import Modal and Button from Ant Design
+import { Modal, Button,Alert } from 'antd'; // Import Modal and Button from Ant Design
 import TableView from './TableView'; // Import TableView component
 import MultiUpload from './MultiUpload'; // Import the new MultiUpload component
 
@@ -17,10 +17,42 @@ const Dashboard = () => {
   const [selectedTable, setSelectedTable] = useState(''); // State for selected table
   const [isModalOpen, setIsModalOpen] = useState(false); // State for modal visibility (TableView)
   const [isMultiUploadOpen, setIsMultiUploadOpen] = useState(false); // State for modal visibility (MultiUpload)
+  const [tableColumns, setTableColumns] = useState([]); // Store table column names in 2D array
+  const [tableData, setTableData] = useState([]); // Store table rows in 2D array
+  const [error, setError] = useState(null);
+
+  function getHeaders(tableNames){
+    const fetchTableData = async () => {
+      if (!tableNames || tableNames.length === 0) {
+        setError('Missing or invalid tableNames parameter');
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/getAllTableData?tableNames=${tableNames.join(',')}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          setTableColumns(data.columns); // Set the 2D array of columns
+          setTableData(data.data); // Set the 2D array of table data
+        } else {
+          setError(data.error || 'Error fetching table data');
+        }
+      } catch (error) {
+        setError('Error fetching table data');
+      } 
+    };
+
+    if (tableNames && tableNames.length > 0) {
+      fetchTableData();
+    } else {
+      setError('Missing or invalid tableNames parameter'); // Handle missing or empty tableNames
+    }
+  };
 
   useEffect(() => {
     // Fetch user details from the server using the firstName
-    fetch(`http://localhost:5000/api/getDetails?firstName=${firstName}`)
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/api/getDetails?firstName=${firstName}`)
       .then((response) => response.json())
       .then((data) => {
         setUser({
@@ -30,6 +62,7 @@ const Dashboard = () => {
           phone: data.phone,
           uploadedTables: data.uploadedTables || [],
         });
+        getHeaders(data.uploadedTables || [])
       })
       .catch((error) => console.error('Error fetching user details:', error));
   }, [firstName]);
@@ -51,12 +84,23 @@ const Dashboard = () => {
     setIsMultiUploadOpen(true);
   };
 
-  // Function to close the MultiUpload modal
+
   const closeMultiUploadModal = () => {
     setIsMultiUploadOpen(false);
+    window.location.reload(); 
   };
+  if (error) {
+    return (
+      <Alert
+        message="Error"
+        description={error}
+        type="error"
+        showIcon
+        style={{ marginBottom: '20px' }}
+      />
+    );
+  }
 
-  // Inline styles
   const styles = {
     navbar: {
       backgroundColor: '#fff',
@@ -269,14 +313,16 @@ const Dashboard = () => {
           <div style={styles.statsContainer}>
             <div style={styles.statBox}>
               <div style={styles.statValue}>{user.uploadedTables.length}</div>
-              <p>Count of tables</p>
+              <p>Number of tables</p>
             </div>
             <div style={styles.statBox}>
-              <div style={styles.statValue}>0h</div>
-              <p>Total number of columns</p>
+              <div style={styles.statValue}>
+                [{tableColumns.map((cols) => cols.length).join(',')}]
+              </div>
+              <p>Number of columns</p>
             </div>
           </div>
-
+          
           <div style={styles.uploadedTablesSection}>
             <div style={styles.sectionTitle}>
               <h2>Uploaded Tables</h2>
@@ -291,7 +337,7 @@ const Dashboard = () => {
                   style={styles.tableItem}
                   onClick={() => openModal(table)} // Set selected table and open modal on click
                 >
-                  {table}
+                  {table.split(`${firstName}_`)[1]}
                 </li>
               ))}
             </ul>
@@ -301,14 +347,14 @@ const Dashboard = () => {
 
       {/* Modal for TableView */}
       <Modal
-        title={`Table Data: ${selectedTable}`}
+        
         visible={isModalOpen}  // Controls modal visibility
         onOk={closeModal}  // Close modal on OK button
         onCancel={closeModal}  // Close modal on Cancel button
         centered  // Centers the modal vertically
         width={800}  // Set modal width
       >
-        <TableView tableName={selectedTable} /> {/* Pass the selected table to TableView */}
+        <TableView tableName={selectedTable} firstName={firstName}/> {/* Pass the selected table to TableView */}
       </Modal>
 
       {/* Modal for MultiUpload */}
@@ -320,7 +366,7 @@ const Dashboard = () => {
         centered  // Centers the modal vertically
         width={600}  // Set modal width for MultiUpload
       >
-        <MultiUpload tableNames={user.uploadedTables}/> {/* Render the MultiUpload component inside the modal */}
+        <MultiUpload firstName={firstName} tableList={user.uploadedTables} tableColumns={tableColumns} tableData={tableData}/> {/* Render the MultiUpload component inside the modal */}
       </Modal>
     </>
   );

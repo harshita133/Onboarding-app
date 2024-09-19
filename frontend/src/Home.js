@@ -25,7 +25,7 @@ const Home = () => {
 
   const handleDashboardSubmit = (values) => {
     var firstN=values.firstname.toLowerCase()
-    fetch('http://localhost:5000/api/findUser', {
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/api/findUser`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

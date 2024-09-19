@@ -4,22 +4,19 @@ import FirstOnboardingStep from './FirstOnboardingStep';
 import SecondOnboardingStep from './SecondOnboardingStep';
 import ThirdOnboardingStep from './ThirdOnboardingStep';
 
-
-
 const OnBoardingSteps = () => {
   const [current, setCurrent] = useState(0);
-  const [form] = Form.useForm(); // Form instance
-  const [firstName,setFirstName]=useState("")
+  const [form] = Form.useForm();
+  const [firstName, setFirstName] = useState("");
   const [columns, setColumns] = useState([]);
   const [parsedData, setParsedData] = useState([]);
+
   const next = () => {
     if (current === 0) {
-      // Validate and submit form when on the first step
       form.validateFields()
         .then((values) => {
-          setFirstName(values.firstname.toLowerCase())
-          // Call your API to submit the form
-          fetch('http://localhost:5000/api/insertNewUser', {
+          setFirstName(values.firstname.toLowerCase());
+          fetch(`${process.env.REACT_APP_API_BASE_URL}/api/insertNewUser`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -34,7 +31,7 @@ const OnBoardingSteps = () => {
             .then((response) => response.json())
             .then((data) => {
               message.success('User added successfully');
-              setCurrent(current + 1); // Move to the next step after successful submission
+              setCurrent(current + 1);
             })
             .catch((error) => {
               message.error('Error adding user');
@@ -43,18 +40,16 @@ const OnBoardingSteps = () => {
         .catch((info) => {
           console.log('Validate Failed:', info);
         });
-    } 
-
-    else {
+    } else {
       setCurrent(current + 1);
     }
   };
 
-  const saveFile=(columns,dataRows)=>{
+  const saveFile = (columns, dataRows) => {
     setColumns(columns);
-    setParsedData(dataRows); 
+    setParsedData(dataRows);
     setCurrent(current + 1);
-  }
+  };
 
   const prev = () => {
     setCurrent(current - 1);
@@ -64,21 +59,21 @@ const OnBoardingSteps = () => {
     marginTop: 16,
   };
 
-
   const steps = [
     {
       title: 'Fill personal details',
-      content: <FirstOnboardingStep form={form} onNext={next}/>,
+      content: <FirstOnboardingStep form={form} onNext={next} />,
     },
     {
       title: 'Upload CSV',
-      content: <SecondOnboardingStep onNext={next} saveFile={saveFile} firstName={firstName}/>,
+      content: <SecondOnboardingStep onNext={next} saveFile={saveFile} firstName={firstName} />,
     },
     {
       title: 'Upload CSV with different headers',
-      content: <ThirdOnboardingStep firstName={firstName} previousColumns={columns} previousRows={parsedData}/>,
+      content: <ThirdOnboardingStep firstName={firstName} previousColumns={columns} previousRows={parsedData} />,
     },
   ];
+
   return (
     <>
       <h1 style={{ textAlign: 'center', marginBottom: '24px' }}>Welcome to the Onboarding Process</h1>
@@ -93,23 +88,16 @@ const OnBoardingSteps = () => {
       </div>
 
       <div style={{ marginTop: 24 }}>
-        {current !=1 && current < steps.length - 1 && (
+        {current != 1 && current < steps.length - 1 && (
           <Button type="primary" onClick={next}>
             Next
           </Button>
         )}
-              {current==2 && current < steps.length  && (
+        {current == 2 && current < steps.length && (
           <Button type="primary" onClick={prev}>
             Prev
           </Button>
         )}
-        {/* {current === steps.length - 1 && (
-          <Button type="primary" href="/dashboard">
-            Done
-          </Button>
-        )} */}
-
-
       </div>
     </>
   );

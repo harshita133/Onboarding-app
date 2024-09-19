@@ -8,7 +8,7 @@ function App() {
 
   // useEffect(() => {
   //   // Fetch data from your API on port 5000
-  //   fetch(`http://localhost:5000/api/hello`)
+  //   fetch(`${process.env.REACT_APP_API_BASE_URL}/api/hello`)
   //     .then((response) => {
   //       if (!response.ok) {
   //         throw new Error('Network response was not ok');

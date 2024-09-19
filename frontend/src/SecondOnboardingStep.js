@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import { message, Upload, Checkbox, Select, Button, Row, Col } from 'antd';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx'; // Import SheetJS for handling Excel files
+import * as XLSX from 'xlsx'; 
 
 const { Option } = Select;
 
-// Restrict upload to CSV or spreadsheet file types
 const beforeUpload = (file) => {
   const isSpreadsheet =
     file.type === 'text/csv' ||
@@ -19,7 +18,7 @@ const beforeUpload = (file) => {
   return isSpreadsheet;
 };
 
-// Function to handle XLSX or XLS file parsing
+
 const handleParseXLSX = (file, callback) => {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -36,11 +35,11 @@ const detectColumnType = (values) => {
   if (values.every((val) => typeof val === 'string' && ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
     return 'BOOLEAN';
   }
-  // Check for integer columns
+ 
   if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
     return 'NUMERIC'; // Use NUMERIC for integer columns
   }
-  // Check for floating point numbers (real numbers)
+  
   if (values.every((val) => !isNaN(val))) {
     return 'REAL';
   }
@@ -62,10 +61,10 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
   const [selectedColumns, setSelectedColumns] = useState({});
   const [parsedData, setParsedData] = useState([]);
 
-  // Function to handle parsing the CSV, XLS, or XLSX files
+  
   const handleParseFile = (file) => {
     if (file.type === 'text/csv') {
-      // Handle CSV file using PapaParse
+      
       Papa.parse(file, {
         complete: (result) => {
           processParsedData(result.data);
@@ -76,20 +75,20 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
       file.type === 'application/vnd.ms-excel'
     ) {
-      // Handle XLSX or XLS file using SheetJS (xlsx)
+     
       handleParseXLSX(file, processParsedData);
     } else {
       message.error('Unsupported file format');
     }
   };
 
-  // Function to process parsed data from either CSV or XLSX
+ 
   const processParsedData = (data) => {
     if (data && data.length > 1) {
-      const firstRow = data[0]; // First row is the header
-      const dataRows = data.slice(1); // Remaining rows are data
+      const firstRow = data[0]; 
+      const dataRows = data.slice(1); 
 
-      // Filter out empty rows
+     
       const filteredDataRows = dataRows.filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
 
       const detectedColumnTypes = {};
@@ -104,8 +103,8 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
 
       setColumns(firstRow);
       setSelectedColumns(detectedColumnTypes);
-      setParsedData(filteredDataRows); // Store the filtered parsed data
-      setLoading(false); // Stop loading after parsing is complete
+      setParsedData(filteredDataRows); 
+      setLoading(false); 
     }
   };
 
@@ -145,13 +144,13 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       return;
     }
 
-    // Convert data to the appropriate types before sending
+   
     const parsedNumericData = parsedData.map((row) =>
       row.map((value, index) => {
         const column = columns[index];
         const dbType = selectedColumns[column]?.dbType;
 
-        // Cast to number if the type is NUMERIC or REAL, else return value as is
+       
         if (dbType === 'NUMERIC' || dbType === 'REAL') {
           return isNaN(value) || value === '' ? null : parseFloat(value);
         }
@@ -167,13 +166,13 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       }));
 
     const payload = {
-      tableName: firstName + "_" + fileUrl.name.split('.').slice(0, -1).join('.'), // Use the file name as the table name
+      tableName: firstName + "_" + fileUrl.name.split('.').slice(0, -1).join('.'), 
       columns: columnsToAdd,
-      data: parsedNumericData, // Use the modified numeric data
+      data: parsedNumericData, 
     };
 
-    // Send POST request with the CSV/XLS/XLSX data to the server
-    fetch('http://localhost:5000/api/createTableFromCSV', {
+  
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/api/createTableFromCSV`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,7 +182,7 @@ const SecondOnboardingStep = ({ onNext, saveFile, firstName }) => {
       .then((response) => response.json())
       .then((data) => {
         message.success('Table created successfully');
-        saveFile(columns, parsedNumericData); // Go to the next step
+        saveFile(columns, parsedNumericData); 
       })
       .catch((error) => {
         message.error('Error creating table');

@@ -1,83 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Button, message, Checkbox, Select, Row, Col, Alert } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Upload, Button, message, Checkbox, Select, List } from 'antd';
 import { LoadingOutlined, UploadOutlined } from '@ant-design/icons';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx'; // Import XLSX for handling Excel files
 
 const { Option } = Select;
 
-const MultiUpload = ({ tableNames }) => {
+const MultiUpload = ({ firstName, tableList, tableColumns, tableData }) => {
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [columns, setColumns] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState({});
   const [parsedData, setParsedData] = useState([]);
-  const [tableColumns, setTableColumns] = useState([]); // Store table column names in 2D array
-  const [tableData, setTableData] = useState([]); // Store table rows in 2D array
-  const [error, setError] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]); // State to track uploaded files
+  const [tableNames, setTableNames] = useState([]);
 
   useEffect(() => {
-    const fetchTableData = async () => {
-      if (!tableNames || tableNames.length === 0) {
-        setError('Missing or invalid tableNames parameter');
-        return;
-      }
+    setUploadedFiles([]); // Clear the uploaded file list when the modal is closed
+    const extractedTableNames = tableList?.map((name) => {
+      return name.split(`${firstName}_`)[1]; // Use the dynamic firstName variable
+    });
 
-      try {
-        console.log(JSON.stringify(tableNames))
-        const response = await fetch(`http://localhost:5000/api/getAllTableData?tableNames=${JSON.stringify(tableNames)}`);
-        const data = await response.json();
-
-        if (response.ok) {
-          setTableColumns(data.columns); // Set the 2D array of columns
-          setTableData(data.data); // Set the 2D array of table data
-        } else {
-          setError(data.error || 'Error fetching table data');
-        }
-      } catch (error) {
-        setError('Error fetching table data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (tableNames && tableNames.length > 0) {
-      fetchTableData();
-    } else {
-      setError('Missing or invalid tableNames parameter'); // Handle missing or empty tableNames
-    }
-  }, [tableNames]);
-
-  if (error) {
-    return (
-      <Alert
-        message="Error"
-        description={error}
-        type="error"
-        showIcon
-        style={{ marginBottom: '20px' }}
-      />
-    );
-  }
+    setTableNames(extractedTableNames);
+  }, [firstName, tableList]);
 
   // Function to detect the column data types
   const detectColumnType = (values) => {
-    if (values.every((val) => typeof val === 'string' && ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase()))) {
+    if (
+      values.every(
+        (val) =>
+          typeof val === 'string' &&
+          ['true', 'false', '1', '0', 'yes', 'no'].includes(val.toLowerCase())
+      )
+    ) {
       return 'BOOLEAN';
     }
-    if (values.every((val) => !isNaN(val) && Number.isInteger(parseFloat(val)))) {
-      return 'NUMERIC[]';
+
+    if (values.every((val) => Number.isInteger(parseFloat(val)) && !isNaN(val))) {
+      return 'NUMERIC';  // Changed from 'NUMERIC[]' to 'NUMERIC'
     }
-    if (values.every((val) => !isNaN(val))) {
+
+    if (values.every((val) => !isNaN(val) && parseFloat(val) % 1 !== 0)) {
       return 'REAL';
     }
+
     if (values.every((val) => typeof val === 'string' && !isNaN(Date.parse(val)))) {
       return 'DATE';
     }
+
     const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
     if (values.every((val) => typeof val === 'string' && timePattern.test(val))) {
       return 'TIMESTAMP';
     }
+
     return 'VARCHAR(1000)';
   };
 
@@ -94,6 +69,20 @@ const MultiUpload = ({ tableNames }) => {
         const firstRow = worksheet[0]; // First row is the header
         const dataRows = worksheet.slice(1); // Remaining rows are data
         const detectedColumnTypes = {};
+
+        // Check if headers match the existing tableColumns
+        if (!compareHeaders(firstRow, tableColumns)) {
+          message.error('Headers do not match the existing table structure.');
+          setLoading(false);
+          return;
+        }
+
+        // Check if the data matches existing table data
+        if (compareData(dataRows, tableData)) {
+          message.error('Uploaded data matches existing data.');
+          setLoading(false);
+          return;
+        }
 
         firstRow.forEach((col, index) => {
           const columnValues = dataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
@@ -121,6 +110,20 @@ const MultiUpload = ({ tableNames }) => {
           const dataRows = result.data.slice(1); // Remaining rows are data
           const detectedColumnTypes = {};
 
+          // Check if headers match the existing tableColumns
+          if (!compareHeaders(firstRow, tableColumns)) {
+            message.error('Headers do not match the existing table structure.');
+            setLoading(false);
+            return;
+          }
+
+          // Check if the data matches existing table data
+          if (compareData(dataRows, tableData)) {
+            message.error('Uploaded data matches existing data.');
+            setLoading(false);
+            return;
+          }
+
           firstRow.forEach((col, index) => {
             const columnValues = dataRows.map((row) => row[index]).filter((val) => val !== undefined && val !== '');
             detectedColumnTypes[col] = {
@@ -139,8 +142,33 @@ const MultiUpload = ({ tableNames }) => {
     });
   };
 
+  // Check if headers match the existing table structure
+  const compareHeaders = (uploadedHeaders, existingHeaders) => {
+    const sortHeaders = (headers) => headers.map((header) => header.trim().toLowerCase()).sort(); // Sort and normalize headers
+
+    const sortedUploadedHeaders = sortHeaders(uploadedHeaders);
+
+    return existingHeaders.some((headerSet) => {
+      const sortedExistingHeaders = sortHeaders(headerSet);
+      return JSON.stringify(sortedExistingHeaders) === JSON.stringify(sortedUploadedHeaders);
+    });
+  };
+
+  // Compare uploaded data against existing table data
+  const compareData = (uploadedData, existingData) => {
+    return existingData.some((existingRowSet) =>
+      uploadedData.some((uploadedRow) => JSON.stringify(existingRowSet) === JSON.stringify(uploadedRow))
+    );
+  };
+
   // Handle changes in file selection
   const handleUploadChange = ({ file, fileList: newFileList }) => {
+    const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.');
+    if (tableNames.includes(fileNameWithoutExtension)) {
+      message.error(`Table with name "${fileNameWithoutExtension}" already exists. File name cannot be the same.`);
+      return; // Prevent file upload if name already exists
+    }
+
     setFileList(newFileList);
     if (file.status === 'uploading') {
       setLoading(true);
@@ -211,17 +239,31 @@ const MultiUpload = ({ tableNames }) => {
         dbType: selectedColumns[col].dbType,
       }));
 
-    // Use file name from the first file (for example purposes)
-    const tableName = fileList[0].name.split('.').slice(0, -1).join('.');
+    const tableName = firstName + "_" + fileList[0].name.split('.').slice(0, -1).join('.');
 
+    // Format parsed data to match DB column types
+    const formattedData = parsedData.map((row) =>
+      row.map((value, index) => {
+        const columnType = selectedColumns[columns[index]]?.dbType;
+        if (columnType === 'NUMERIC' || columnType === 'REAL') {
+        
+            // Convert value to float or null if it's not a valid number
+            return isNaN(value) || value === '' ? null : parseFloat(value);
+
+          // Ensure numeric types are parsed as numbers
+        }
+        return value;
+      })
+    );
+    formattedData.pop()
     const payload = {
       tableName,
       columns: columnsToAdd,
-      data: parsedData,
+      data: formattedData,
     };
 
     // Post the payload to your server (implement the logic accordingly)
-    fetch('http://localhost:5000/api/createTableFromCSV', {
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/api/createTableFromCSV`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -231,6 +273,10 @@ const MultiUpload = ({ tableNames }) => {
       .then((response) => response.json())
       .then((data) => {
         message.success('Table created successfully');
+        setUploadedFiles([...uploadedFiles, fileList[0].name]); // Add file name to the list of uploaded files
+        setFileList([]); // Clear the file list after successful upload
+        setColumns([]); // Reset columns
+        setSelectedColumns({}); // Reset selected columns
       })
       .catch((error) => {
         message.error('Error creating table');
@@ -257,7 +303,6 @@ const MultiUpload = ({ tableNames }) => {
     </div>
   );
 
-  // Data types for columns
   const dataTypes = ['VARCHAR(1000)', 'CHAR[]', 'NUMERIC', 'NUMERIC[]', 'REAL', 'BOOLEAN', 'DATE', 'TIMESTAMP'];
 
   return (
@@ -267,10 +312,10 @@ const MultiUpload = ({ tableNames }) => {
         listType="picture-circle"
         fileList={fileList}
         onChange={handleUploadChange}
-        beforeUpload={beforeUpload} // Validate file types only
+        beforeUpload={beforeUpload} // Validate file types and prevent duplicates
         accept=".csv,.xls,.xlsx" // Only allow CSV, XLS, and XLSX files in the file picker
         showUploadList={true} // Show the list of uploaded files
-        multiple // Allow multiple files to be uploaded
+        multiple={false} // Only allow one file at a time
         customRequest={({ onSuccess }) => {
           setTimeout(() => {
             setLoading(false);
@@ -288,6 +333,7 @@ const MultiUpload = ({ tableNames }) => {
             {columns.map((col, index) => (
               <li key={index} style={{ marginBottom: '10px', textAlign: 'left' }}>
                 <Checkbox
+                  disabled
                   checked={selectedColumns[col]?.addToDatabase}
                   onChange={(e) => handleCheckboxChange(col, e.target.checked)}
                 />
@@ -296,6 +342,7 @@ const MultiUpload = ({ tableNames }) => {
                   <Select
                     placeholder="Select DB Type"
                     style={{ width: '200px' }}
+                    disabled
                     onChange={(value) => handleDbTypeChange(col, value)}
                     value={selectedColumns[col]?.dbType}
                   >
@@ -309,6 +356,17 @@ const MultiUpload = ({ tableNames }) => {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {uploadedFiles.length > 0 && (
+        <div style={{ marginTop: '40px' }}>
+          <h3>Uploaded Files:</h3>
+          <List
+            bordered
+            dataSource={uploadedFiles}
+            renderItem={(file) => <List.Item>{file}</List.Item>}
+          />
         </div>
       )}
 
