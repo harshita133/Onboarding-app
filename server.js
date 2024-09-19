@@ -249,5 +249,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Backend is running on http://localhost:${port}`);
+  console.log(`Backend is running on post ${port}`);
 });
