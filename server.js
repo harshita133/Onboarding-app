@@ -4,51 +4,46 @@ const path=require('path')
 const pool=require('./database')
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = 5000;
 
-// Enable CORS for all routes
+
 app.use(cors());
 app.use(express.json()); 
-console.log(__dirname)
+// console.log(__dirname)
 app.use(express.static(path.join(__dirname, 'public')));
-// API route
-
-// app.get('/api/initialQuery', (req, res) => {
-//   console.log("check check check")
-//   // Define the column structure
-//   const columnDefinitions = `
-//     "firstName" TEXT, 
-//     "lastName" TEXT, 
-//     "phone" NUMERIC, 
-//     "email" TEXT
-//   `;
-
-//   // Create the SQL query to create the UserDetails table
-//   const createTableQuery = `CREATE TABLE IF NOT EXISTS "UserDetails" (${columnDefinitions})`;
-
-//   // Execute the query using the PostgreSQL pool
-//   pool.query(createTableQuery)
-//     .then((response) => {
-//       console.log("Table created or already exists");
-
-//       // Optionally fetch data to verify table creation
-//       const selectTableQuery = `SELECT * FROM UserDetails`;
-//       return pool.query(selectTableQuery); // Fetch data from the table
-//     })
-//     .then((response) => {
-//       console.log("Fetching Data");
-//       console.log(response.rows); // Log the data in the table
-//       res.json({ message: 'Table created and data fetched successfully!', data: response.rows });
-//     })
-//     .catch((err) => {
-//       console.error("Error creating table or fetching data:", err);
-//       res.status(500).json({ error: 'Error creating table or fetching data' });
-//     });
-// });
 
 
+app.get('/api/hello', (req, res) => {
+  
+  const columnDefinitions = `
+    firstName TEXT, 
+    lastName TEXT, 
+    phone NUMERIC, 
+    email TEXT
+  `;
 
+  
+  const createTableQuery = `CREATE TABLE IF NOT EXISTS UserDetails (${columnDefinitions})`;
 
+  
+  pool.query(createTableQuery)
+    .then((response) => {
+      console.log("Table created or already exists");
+
+    
+      const selectTableQuery = `SELECT * FROM UserDetails`;
+      return pool.query(selectTableQuery); 
+    })
+    .then((response) => {
+      console.log("Fetching Data");
+      console.log(response.rows); 
+      res.json({ message: 'Table created and data fetched successfully!', data: response.rows });
+    })
+    .catch((err) => {
+      console.error("Error creating table or fetching data:", err);
+      res.status(500).json({ error: 'Error creating table or fetching data' });
+    });
+});
 
 app.get('/api/check', (req, res) => {
 
@@ -82,11 +77,11 @@ app.post('/api/insertNewUser', (req, res) => {
     });
 });
 
-// Handle the POST request to find the user
+
 app.post('/api/findUser', (req, res) => {
   const { firstName } = req.body;
 
-  // Query the database to find the user by first name
+ 
   const query = `SELECT "firstName", "lastName", phone, email FROM public."UserDetails" WHERE "firstName" = $1;`;
   pool.query(query, [firstName], (err, result) => {
     if (err) {
@@ -106,21 +101,21 @@ app.post('/api/findUser', (req, res) => {
 app.post('/api/createTableFromCSV', (req, res) => {
   const { tableName, columns, data } = req.body;
 
-  // Construct CREATE TABLE query
+  
   const columnDefinitions = columns
-    .map((col) => `${col.name} ${col.dbType.toUpperCase()}`)
+    .map((col) => `"${col.name}" ${col.dbType.toUpperCase()}`)
     .join(', ');
 
-  const createTableQuery = `CREATE TABLE ${tableName} (${columnDefinitions})`;
+  const createTableQuery = `CREATE TABLE "${tableName}" (${columnDefinitions})`;
   pool.query(createTableQuery, (err) => {
     if (err) {
       console.log(err)
       return res.status(500).json({ message: 'Error creating table', error: err });
     }
 
-    // Insert CSV data into the newly created table
+   
     const insertValues = data.map((row) => `(${row.map((val) => `'${val}'`).join(', ')})`).join(', ');
-    const insertQuery = `INSERT INTO ${tableName} (${columns.map((col) => col.name).join(', ')}) VALUES ${insertValues}`;
+    const insertQuery = `INSERT INTO "${tableName}" (${columns.map((col) => `"${col.name}"`).join(', ')}) VALUES ${insertValues}`;
     console.log(insertQuery)
     pool.query(insertQuery, (err) => {
       console.log(err)
@@ -133,16 +128,16 @@ app.post('/api/createTableFromCSV', (req, res) => {
 });
 
 
-// Define the /api/getDetails route to fetch user details and tables
+
 app.get('/api/getDetails', async (req, res) => {
-  const { firstName } = req.query; // Extract firstName from query params
+  const { firstName } = req.query; 
 
   if (!firstName) {
     return res.status(400).json({ error: 'Missing firstName parameter' });
   }
 
   try {
-    // Query to fetch user details based on firstName
+    
     const userDetailsQuery = `
       SELECT "firstName", "lastName", email, phone 
       FROM public."UserDetails" 
@@ -150,12 +145,12 @@ app.get('/api/getDetails', async (req, res) => {
     `;
     const userDetailsResult = await pool.query(userDetailsQuery, [firstName]);
 
-    // Check if the user was found
+    
     if (userDetailsResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Query to fetch tables matching the pattern firstName_<table_name>
+    
     const tablesQuery = `
       SELECT table_name 
       FROM information_schema.tables 
@@ -164,12 +159,12 @@ app.get('/api/getDetails', async (req, res) => {
     const tablesResult = await pool.query(tablesQuery, [`${firstName}_%`]);
 
     const userDetails = userDetailsResult.rows[0];
-    const uploadedTables = tablesResult.rows.map(row => row.table_name); // Extract table names
+    const uploadedTables = tablesResult.rows.map(row => row.table_name); 
 
-    // Send the user details and table names as a response
+    
     res.json({
       ...userDetails,
-      uploadedTables, // Add the list of tables
+      uploadedTables, 
     });
   } catch (err) {
     console.error('Error querying the database:', err);
@@ -179,27 +174,27 @@ app.get('/api/getDetails', async (req, res) => {
 
 
 app.get('/api/getTableData', async (req, res) => {
-  const { tableName } = req.query; // Extract tableName from query params
+  const { tableName } = req.query; 
 
   if (!tableName) {
     return res.status(400).json({ error: 'Missing tableName parameter' });
   }
 
-  // Validate the table name (simple check for allowed characters to prevent SQL injection)
+  
   if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
     return res.status(400).json({ error: 'Invalid table name' });
   }
 
   try {
-    // Query to fetch all data from the given table
+    
     const result = await pool.query(`SELECT * FROM public."${tableName}"`);
 
-    // Check if the table has any data
+   
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Table not found or no data available' });
     }
 
-    // Send the table data as a response
+    
     res.json(result.rows);
   } catch (err) {
     console.error('Error querying the database:', err);
@@ -209,26 +204,26 @@ app.get('/api/getTableData', async (req, res) => {
 
 
 app.get('/api/getAllTableData', async (req, res) => {
-  const { tableNames } = req.query; // Extract tableNames from query params (array expected)
-  console.log(tableNames.length )
-  if (!tableNames || !Array.isArray(tableNames) || tableNames.length === 0) {
-    console.log("failure")
+  const { tableNames } = req.query;
+  console.log(tableNames.length)
+  
+  const tableNamesArray = tableNames ? tableNames.split(',') : [];
+
+  if (!tableNamesArray || tableNamesArray.length === 0) {
     return res.status(400).json({ error: 'Missing or invalid tableNames parameter' });
   }
 
   try {
     const columnNames = [];
     const tableData = [];
-    console.log(tableNames)
-    for (const tableName of tableNames) {
-      console.log("hello")
-      // Validate the table name (simple check for allowed characters to prevent SQL injection)
+    
+    for (const tableName of tableNamesArray) {
+     
       if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
-        console.log("dasdaknsdkansdkansjk")
         return res.status(400).json({ error: `Invalid table name: ${tableName}` });
       }
-      console.log("dadasdada")
-      // Query to get column names for each table
+
+      
       const columnResult = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
@@ -236,10 +231,9 @@ app.get('/api/getAllTableData', async (req, res) => {
       `);
       const tableResult = await pool.query(`SELECT * FROM public."${tableName}"`);
 
-      // Collect columns and table data
+      
       columnNames.push(columnResult.rows.map(row => row.column_name));
-      tableData.push(tableResult.rows); // Push rows data from the current table
-      console.log(columnNames)
+      tableData.push(tableResult.rows); 
     }
 
     res.json({ columns: columnNames, data: tableData });
@@ -253,7 +247,7 @@ app.get('/api/getAllTableData', async (req, res) => {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-// Start server
+
 app.listen(port, () => {
   console.log(`Backend is running on http://localhost:${port}`);
 });
